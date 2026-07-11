@@ -1,0 +1,28 @@
+{
+  "name": "investment-research-agent-server",
+  "version": "1.0.0",
+  "description": "Backend for the AI Investment Research Agent: Express API + LangGraph.js pipeline over Gemini.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8",
+    "uuid": "^9.0.1",
+    "express-rate-limit": "^7.4.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/google-genai": "^0.1.0",
+    "@langchain/core": "^0.3.0",
+    "yahoo-finance2": "2.11.3",
+    "rss-parser": "^3.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
