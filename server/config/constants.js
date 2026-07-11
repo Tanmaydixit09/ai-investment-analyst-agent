@@ -10,17 +10,24 @@
  */
 
 /**
- * Weights used to combine individual sub-scores into the overall investment
- * score. Must sum to 1 — enforced by a check in investmentScoringService,
- * not here, since this file holds data, not logic.
- * @type {Readonly<{growth: number, financialHealth: number, risk: number, sentiment: number, marketPosition: number}>}
+ * Weights used to combine individual fundamentals sub-scores into the
+ * overall investment score. Must sum to 1 (enforced by a check in
+ * investmentScoringService, not here, since this file holds data, not
+ * logic).
+ *
+ * Note: an earlier draft of this file had a 5-dimension version of these
+ * weights (growth/financialHealth/risk/sentiment/marketPosition) reflecting
+ * a broader scoring model that included news sentiment. Nothing ever
+ * consumed that shape. Step 6 scopes scoring to four pure-fundamentals
+ * inputs only (no news, no LLM, no external calls) — these weights match
+ * that actual, implemented scope.
+ * @type {Readonly<{peRatio: number, revenueGrowth: number, profitMargin: number, debtToEquity: number}>}
  */
 export const SCORE_WEIGHTS = Object.freeze({
-  growth: 0.25,
-  financialHealth: 0.25,
-  risk: 0.2,
-  sentiment: 0.15,
-  marketPosition: 0.15,
+  peRatio: 0.2,
+  revenueGrowth: 0.3,
+  profitMargin: 0.3,
+  debtToEquity: 0.2,
 });
 
 /**
@@ -60,6 +67,12 @@ export const PROVIDER_TIMEOUTS_MS = Object.freeze({
  * into a human-facing confidence number, keeping confidence derived from
  * the score rather than stated arbitrarily by the LLM. See
  * recommendationService / architecture-spec.md Section 7.
+ *
+ * Not used by Step 6 (investmentScoringService/recommendationService) —
+ * the confidence returned by investmentScoringService is a data-completeness
+ * measure (how many of the 4 fundamentals metrics were available), a
+ * different concept from this threshold-distance confidence. This constant
+ * is reserved for the explanation/response layer, once it exists.
  * @type {Readonly<{high: number, medium: number, low: number}>}
  */
 export const CONFIDENCE_BANDS = Object.freeze({
