@@ -1,14 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import { env } from './config/index.js';
+import { requestId } from './middleware/requestId.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import researchRoutes from './routes/researchRoutes.js';
 
 /**
- * Server entry point. Deliberately minimal at this stage: routes,
- * controllers, and middleware (rate limiting, request validation, error
- * handling) don't exist yet — they're built in step 9, once the business
- * logic layers (services, LangGraph pipeline) they depend on are in place.
- * This file's only job right now is to prove the server boots, loads
- * validated config, and responds to a basic request.
+ * Server entry point. Wires together the middleware, routes, and
+ * centralized error handler built in Step 9, on top of the business logic
+ * layers (services, LangGraph pipeline) built in earlier steps.
  *
  * Importing `env` from config/index.js (rather than reading process.env
  * directly) also means: if a required environment variable is missing,
@@ -19,6 +19,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(requestId);
 
 app.get('/', (req, res) => {
   res.json({
@@ -26,6 +27,13 @@ app.get('/', (req, res) => {
     service: 'AI Investment Research Agent API',
   });
 });
+
+app.use('/api', researchRoutes);
+
+// Error handler is registered LAST, after all routes — Express only
+// recognizes a four-argument function as error-handling middleware, and
+// it only catches errors from routes/middleware registered before it.
+app.use(errorHandler);
 
 app.listen(env.PORT, () => {
   console.log(`🚀 AI Investment Research Agent API listening on port ${env.PORT} (${env.NODE_ENV})`);
