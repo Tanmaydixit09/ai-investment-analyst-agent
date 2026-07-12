@@ -1,6 +1,17 @@
 import yahooFinance from 'yahoo-finance2';
 import { IFinancialDataProvider } from './IFinancialDataProvider.js';
 
+const COMPANY_TICKERS = {
+  apple: { ticker: "AAPL", name: "Apple Inc.", exchange: "NASDAQ" },
+  microsoft: { ticker: "MSFT", name: "Microsoft Corporation", exchange: "NASDAQ" },
+  tesla: { ticker: "TSLA", name: "Tesla, Inc.", exchange: "NASDAQ" },
+  amazon: { ticker: "AMZN", name: "Amazon.com, Inc.", exchange: "NASDAQ" },
+  google: { ticker: "GOOGL", name: "Alphabet Inc.", exchange: "NASDAQ" },
+  alphabet: { ticker: "GOOGL", name: "Alphabet Inc.", exchange: "NASDAQ" },
+  meta: { ticker: "META", name: "Meta Platforms, Inc.", exchange: "NASDAQ" },
+  nvidia: { ticker: "NVDA", name: "NVIDIA Corporation", exchange: "NASDAQ" },
+};
+
 /**
  * Concrete financial data provider backed by Yahoo Finance (via the
  * unofficial `yahoo-finance2` package).
@@ -26,11 +37,23 @@ export class YahooFinanceProvider extends IFinancialDataProvider {
     let searchResult;
     try {
       searchResult = await yahooFinance.search(companyName.trim());
-    } catch (cause) {
-      throw new Error(
-        `YahooFinanceProvider.resolveTicker: search request failed for "${companyName}": ${cause.message}`
-      );
+    } 
+    catch (cause) {
+  const message = cause?.message || "";
+
+  if (message.includes("Too Many Requests")) {
+    const fallback =
+      COMPANY_TICKERS[companyName.trim().toLowerCase()];
+
+    if (fallback) {
+      return fallback;
     }
+  }
+
+  throw new Error(
+    `YahooFinanceProvider.resolveTicker: search request failed for "${companyName}": ${message}`
+  );
+}
 
     const bestMatch = searchResult?.quotes?.find(
       (q) => q.symbol && q.quoteType === 'EQUITY'
