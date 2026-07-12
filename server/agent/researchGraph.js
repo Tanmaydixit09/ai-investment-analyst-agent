@@ -3,6 +3,7 @@ import * as financialDataService from '../services/financialDataService.js';
 import * as newsService from '../services/newsService.js';
 import { calculateScore } from '../services/investmentScoringService.js';
 import { scoreToRecommendation } from '../services/recommendationService.js';
+import { generateExplanationNode } from './generateExplanationNode.js';
 
 /**
  * Graph state schema. Every field below is a "channel" — LangGraph uses the
@@ -27,6 +28,7 @@ const ResearchState = Annotation.Root({
   newsUnavailable: Annotation(),
   score: Annotation(), // { score, confidence, breakdown }
   recommendation: Annotation(), // 'BUY' | 'HOLD' | 'SELL'
+  explanation: Annotation(), // string, from generateExplanationNode (Step 8)
 });
 
 /**
@@ -112,10 +114,13 @@ export async function decideRecommendationNode(state) {
  * internal state (e.g. for debugging), or wrapped by runResearchWorkflow()
  * below for the public, contract-shaped result.
  *
- * No Gemini/explanation step yet (Step 8) and no error-recovery/retry graph
- * edges (out of scope for this step) — a rejected promise from any node
- * (other than fetchNewsNode, which degrades gracefully) propagates up to
- * whatever calls .invoke(), to be handled by the controller layer (Step 9).
+ * Step 8 adds generateExplanationNode as the final step: Gemini explains
+ * the already-decided recommendation, with its own internal retry-once
+ * logic (see generateExplanationNode.js) and a ServiceError thrown if both
+ * attempts fail. No other graph-level error-recovery/retry edges exist —
+ * a rejected promise from any node (other than fetchNewsNode, which
+ * degrades gracefully) propagates up to whatever calls .invoke(), to be
+ * handled by the controller layer (Step 9).
  */
 export const researchGraph = new StateGraph(ResearchState)
   .addNode('resolveCompanyNode', resolveCompanyNode)
@@ -124,6 +129,7 @@ export const researchGraph = new StateGraph(ResearchState)
   .addNode('mergeResultsNode', mergeResultsNode)
   .addNode('scoreInvestmentNode', scoreInvestmentNode)
   .addNode('decideRecommendationNode', decideRecommendationNode)
+  .addNode('generateExplanationNode', generateExplanationNode)
   .addEdge(START, 'resolveCompanyNode')
   .addEdge('resolveCompanyNode', 'fetchFinancialDataNode')
   .addEdge('resolveCompanyNode', 'fetchNewsNode')
@@ -131,7 +137,8 @@ export const researchGraph = new StateGraph(ResearchState)
   .addEdge('fetchNewsNode', 'mergeResultsNode')
   .addEdge('mergeResultsNode', 'scoreInvestmentNode')
   .addEdge('scoreInvestmentNode', 'decideRecommendationNode')
-  .addEdge('decideRecommendationNode', END)
+  .addEdge('decideRecommendationNode', 'generateExplanationNode')
+  .addEdge('generateExplanationNode', END)
   .compile();
 
 /**
@@ -141,7 +148,7 @@ export const researchGraph = new StateGraph(ResearchState)
  * the shape callers depend on.
  *
  * @param {string} companyName - free-text company name, e.g. "Apple"
- * @returns {Promise<{company: string, ticker: string, financials: object, news: Array, score: object, recommendation: string}>}
+ * @returns {Promise<{company: string, ticker: string, financials: object, news: Array, score: object, recommendation: string, explanation: string}>}
  */
 export async function runResearchWorkflow(companyName) {
   const finalState = await researchGraph.invoke({ company: companyName });
@@ -153,5 +160,6 @@ export async function runResearchWorkflow(companyName) {
     news: finalState.news,
     score: finalState.score,
     recommendation: finalState.recommendation,
+    explanation: finalState.explanation,
   };
 }
